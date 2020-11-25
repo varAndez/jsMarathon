@@ -25,12 +25,18 @@ const enemy = {
 
 const actions = [
 	{
+		name: 'Thunder Jolt',
 		elButton: document.getElementById('btn-kick'),
-		damageMultiplier: 30
+		damageMultiplier: 20,
+		makeActionLog,
+		limit: 7
 	},
 	{
+		name: 'Backstab',
 		elButton: document.getElementById('btn-kick-spec'),
-		damageMultiplier: 40
+		damageMultiplier: 30,
+		makeActionLog,
+		limit: 3
 	}
 ]
 
@@ -48,68 +54,61 @@ function renderHPBar() {
 	this.elHPBar.style.width = (this.HP * 100) / this.defaultHP + '%';
 }
 
-function getDamage(count) {
-	const damageCount = Math.ceil((this.defaultHP / 100) * count);
+const random = (num) => Math.ceil(Math.random() * num);
 
-	this.HP -= damageCount;
+function makeActionLog(counter) {
+	const consoleBar = document.getElementById('logs');
+	const consoleLog = document.createElement('p');
+	if (counter < this.limit) {
+		consoleLog.innerText = `Колличество применений способности "${this.name}" : ${counter}. Осталось: ${this.limit - counter}`;
+		consoleBar.insertBefore(consoleLog, consoleBar.children[0]);
+	} else {
+		consoleLog.innerText = `Больше нельзя применить эту способность`;
+		consoleBar.insertBefore(consoleLog, consoleBar.children[0]);
+	}
+}
 
-	console.log('HP ' + this.name + this.HP);
-	console.log('Earned damage: ' + Math.ceil((this.defaultHP / 100) * count));
+const renderActionLimits = (button, counter) => {
+	button.elButton.innerText = `${button.name} (${button.limit - counter})`;
+};
 
-	if (count > (this.HP * 100) / this.defaultHP) {
-		this.HP = 0;
+function makeAction(action) {
+	let actionCounter = 0;
+	renderActionLimits(action, actionCounter);
 
-		if (this.name === character.name) {
-
-			console.log(enemy.name + ' make last kick ' + '(' + damageCount + ') ' + 'to ' + character.name);
+	return function () {
+		if (actionCounter < action.limit) {
+			character.getDamage(random(action.damageMultiplier));
+			enemy.getDamage(random(action.damageMultiplier));
+			++actionCounter;
+			action.makeActionLog(actionCounter);
+			renderActionLimits(action, actionCounter);
 		} else {
-			console.log(character.name + ' make last kick ' + '(' + damageCount + ') ' + 'to ' + enemy.name);
+			action.elButton.disabled = true;
+			action.makeActionLog(actionCounter);
 		}
 
-		console.log('Бедный ' + this.name + ' проиграл бой!');
-		disableALlButtons(actions);
 	}
-
-	if (this.name === character.name) {
-		makeLog(character, enemy, damageCount);
-	} else {
-		makeLog(enemy, character, damageCount);
-	}
-
-
-
-	this.renderHP();
-
 }
 
-function random(num) {
-	return Math.ceil(Math.random() * num);
-}
+function setupHitButtons(buttons) {
+	for (let i = 0; i < buttons.length; i++) {
+		const strikeOut = makeAction(buttons[i]);
 
-function setupHitButtons(settings) {
-	for (let i = 0; i < settings.length; i++) {
-		settings[i].elButton.addEventListener('click', function () {
+		buttons[i].elButton.addEventListener('click', function () {
 			console.log('Kick');
-			character.getDamage(random(settings[i].damageMultiplier));
-			enemy.getDamage(random(settings[i].damageMultiplier));
+			strikeOut();
 		});
 	}
 }
 
-function makeLog(target, person, damage) {
-	const consoleBar = document.getElementById('logs');
-	const consoleLog = document.createElement('p');
-	consoleLog.innerText = generateLog(target, person, damage);
-	consoleBar.insertBefore(consoleLog, consoleBar.children[0])
-}
-
-function disableALlButtons(buttons) {
+const disableALlButtons = (buttons) => {
 	for (let i = 0; i < buttons.length; i++) {
 		buttons[i].elButton.disabled = true;
 	}
-}
+};
 
-function generateLog(firstPerson, secondPerson, damage) {
+function generateHitLog(firstPerson, secondPerson, damage) {
 	const logs = [
 		`${firstPerson.name} вспомнил что-то важное, но неожиданно ${secondPerson.name}, не помня себя от испуга, ударил в предплечье врага. -${damage}, [${firstPerson.HP}/${firstPerson.defaultHP}]`, // -12, [88/100]
 		`${firstPerson.name} поперхнулся, и за это ${secondPerson.name} с испугу приложил прямой удар коленом в лоб врага. -${damage}, [${firstPerson.HP}/${firstPerson.defaultHP}]`,
@@ -125,11 +124,50 @@ function generateLog(firstPerson, secondPerson, damage) {
 	return logs[random(logs.length - 1)];
 }
 
+
+function makeHItLog(target, person, damage) {
+	const consoleBar = document.getElementById('logs');
+	const consoleLog = document.createElement('p');
+	consoleLog.innerText = generateHitLog(target, person, damage);
+	consoleBar.insertBefore(consoleLog, consoleBar.children[0]);
+}
+
+function getDamage(count) {
+	const damageCount = Math.ceil((this.defaultHP / 100) * count);
+
+	this.HP -= damageCount;
+
+	console.log('HP ' + this.name + this.HP);
+	console.log('Earned damage: ' + Math.ceil((this.defaultHP / 100) * count));
+
+	if (count > (this.HP * 100) / this.defaultHP) {
+		this.HP = 0;
+
+		if (this.name === character.name) {
+			console.log(`${enemy.name} make last kick (${damageCount}) to ${character.name}`);
+		} else {
+			console.log(`${character.name} make last kick (${damageCount}) to ${enemy.name}`);
+		}
+
+		console.log('Бедный ' + this.name + ' проиграл бой!');
+		disableALlButtons(actions);
+	}
+
+	if (this.name === character.name) {
+		makeHItLog(character, enemy, damageCount);
+	} else {
+		makeHItLog(enemy, character, damageCount);
+	}
+
+	this.renderHP();
+}
+
 function createConsole() {
 	const consoleBlock = document.createElement('div');
 	const playGround = document.querySelector('html');
 	playGround.appendChild(consoleBlock).setAttribute('id', 'logs');
 }
+
 
 function init() {
 	console.log('Start Game!');
